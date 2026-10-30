@@ -24,10 +24,21 @@ COPY app/ ./
 # TODO(step-4d): set the runtime base image (same tag as step-4a for consistency).
 FROM node:20.11-slim
 
+# Apply security updates for the OS packages flagged by Trivy.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends --only-upgrade libgnutls30 perl-base \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # TODO(step-4e): copy the fully-installed app from the builder stage.
 COPY --from=builder /app /app
+
+# Patch the transitive dependency in the image without editing the workshop app.
+# The runtime starts Node directly, so npm and its bundled tar are unnecessary.
+RUN npm install --omit=dev --no-save --package-lock=false proxy-addr@2.0.8 \
+    && npm uninstall --global npm \
+    && rm -rf /root/.npm
 
 ENV NODE_ENV=production
 EXPOSE 3000
